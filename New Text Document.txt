@@ -1,0 +1,91 @@
+import pandas as pd
+import numpy as np
+import seaborn as sns                       #visualization
+import matplotlib.pyplot as plt 
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+
+
+
+Hãy sử dụng hồi quy tuyến tính để tìm mô hình dự đoán điểm G3 khi biết trước điểm G2 và đánh giá mô hình tìm được.
+
+import pandas as pd
+from sklearn.linear_model import LinearRegression
+
+model = LinearRegression()
+X = df[['G2']]
+Y = df['G3']
+
+print("Tập X",X)
+
+print("Tập Y",Y)
+
+
+import pandas as pd
+from sklearn.model_selection import train_test_split
+X = df[['G2']]
+Y = df['G3']
+X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.3, random_state=42)
+
+print("Kích thước tập huấn luyện:", X_train.shape, Y_train.shape)
+print("Kích thước tập kiểm thử:", X_test.shape, Y_test.shape)
+
+print("5 dòng đầu tiên của tập huấn luyện:")
+print(X_train.head())
+print(Y_train.head())
+
+print("5 dòng đầu tiên của tập kiểm thử:")
+print(X_test.head())
+print(Y_test.head())
+X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.3, random_state=42)
+
+# Xây dựng mô hình hồi quy tuyến tính
+model = LinearRegression()
+model.fit(X_train, Y_train)
+Y_pred = model.predict(X_test)
+mse = mean_squared_error(Y_test, Y_pred)
+r2 = r2_score(Y_test, Y_pred)
+print("(MSE):", mse)
+print("(R2):", r2)
+X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.3, random_state=42)
+model = LinearRegression()
+model.fit(X_train, Y_train)
+
+Y_pred = model.predict(X_test)
+
+plt.scatter(X_test, Y_test, color='blue', label='Dữ liệu thực tế')
+
+# Vẽ biểu đồ line cho kết quả dự đoán
+plt.plot(X_test, Y_pred, color='red', linewidth=2, label='Dự đoán')
+
+# Đặt tiêu đề và nhãn cho trục
+plt.title('Biểu đồ Scatter và Line cho kết quả dự đoán')
+plt.xlabel('G2')
+plt.ylabel('G3')
+
+plt.legend()
+plt.show()
+
+
+
+
+
+X = df[['G2']]
+Y = df['G3']
+model = LinearRegression()
+model.fit(X_train, Y_train)
+Y_train_pred = model.predict(X_train)
+
+residuals = Y_train - Y_train_pred
+
+# Vẽ biểu đồ scatter của độ chênh lệch
+plt.scatter(X_train, residuals, color='blue', label='Độ chênh lệch')
+
+# Đặt tiêu đề và nhãn cho trục
+plt.title('Biểu đồ độ chênh lệch giữa kết quả dự đoán và kết quả thực tế')
+plt.xlabel('G2')
+plt.ylabel('Độ chênh lệch')
+
+# Hiển thị biểu đồ
+plt.legend()
+plt.show()
