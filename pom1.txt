@@ -1,0 +1,661 @@
+<build>
+		<plugins>
+			<plugin>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.1</version>
+				<configuration>
+					<release>11</release>
+				</configuration>
+			</plugin>
+			<plugin>
+				<artifactId>maven-war-plugin</artifactId>
+				<version>3.3.1</version>
+				<configuration>
+					<failOnMissingWebXml>false</failOnMissingWebXml>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+
+	<properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<springframework.version>5.2.16.RELEASE</springframework.version>
+		<maven.compiler.source>11</maven.compiler.source>
+		<maven.compiler.target>11</maven.compiler.target>
+	</properties>
+
+	<dependencies>
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-webmvc</artifactId>
+			<version>${springframework.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-tx</artifactId>
+			<version>${springframework.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-orm</artifactId>
+			<version>${springframework.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
+			<version>2.9.5</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.hibernate</groupId>
+			<artifactId>hibernate-core</artifactId>
+			<version>5.4.0.Final</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.microsoft.sqlserver</groupId>
+			<artifactId>mssql-jdbc</artifactId>
+			<version>8.4.1.jre11</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.mchange</groupId>
+			<artifactId>c3p0</artifactId>
+			<version>0.9.5.2</version>
+		</dependency>
+
+		<dependency>
+			<groupId>javax.servlet</groupId>
+			<artifactId>javax.servlet-api</artifactId>
+			<version>3.1.0</version>
+		</dependency>
+
+		<dependency>
+			<groupId>javax.servlet.jsp</groupId>
+			<artifactId>javax.servlet.jsp-api</artifactId>
+			<version>2.3.1</version>
+		</dependency>
+
+
+package PHAMKIENTRUNG_REST.config;
+
+import java.beans.PropertyVetoException;
+import java.util.Properties;
+import java.util.logging.Logger;
+
+import javax.sql.DataSource;
+
+import org.hibernate.SessionFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.PropertySource;
+import org.springframework.core.env.Environment;
+import org.springframework.orm.hibernate5.HibernateTransactionManager;
+import org.springframework.orm.hibernate5.LocalSessionFactoryBean;
+import org.springframework.transaction.annotation.EnableTransactionManagement;
+import org.springframework.web.servlet.ViewResolver;
+import org.springframework.web.servlet.config.annotation.EnableWebMvc;
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.web.servlet.view.InternalResourceViewResolver;
+
+import com.mchange.v2.c3p0.ComboPooledDataSource;
+
+@Configuration
+@EnableWebMvc
+@EnableTransactionManagement
+@ComponentScan("PHAMKIENTRUNG_REST")
+@PropertySource({"classpath:persistence-mssql.properties"})
+public class DemoAppConfig implements WebMvcConfigurer {
+	 @Autowired
+	 private Environment env;
+	 
+	 private Logger logger = Logger.getLogger(getClass().getName());
+	 
+	 @Bean
+	 public ViewResolver viewResolver() {
+		 InternalResourceViewResolver viewResolver = new InternalResourceViewResolver();
+		 viewResolver.setPrefix("/WEB-INF/view/");
+		 viewResolver.setSuffix(".jsp");
+		 return viewResolver;
+	 }
+	 
+	 @Bean
+	 public DataSource myDataSource() {
+		 ComboPooledDataSource myDataSource = new ComboPooledDataSource();
+		 try {
+			 myDataSource.setDriverClass("com.microsoft.sqlserver.jdbc.SQLServerDriver");
+			 
+		 }	catch (PropertyVetoException exc) {
+			 throw new RuntimeException(exc);
+		 }
+		 logger.info("jdbc.url=" + env.getProperty("jdbc.url"));
+		 logger.info("jdbc.user=" + env.getProperty("jdbc.user"));
+		 myDataSource.setJdbcUrl(env.getProperty("jdbc.url"));
+		 myDataSource.setUser(env.getProperty("jdbc.user"));
+		 myDataSource.setPassword(env.getProperty("jdbc.password"));
+		 
+		 myDataSource.setInitialPoolSize(getIntProperty("connection.pool.initialPoolSize"));
+		 myDataSource.setMinPoolSize(getIntProperty("connection.pool.minPoolSize"));
+		 myDataSource.setMaxPoolSize(getIntProperty("connection.pool.maxPoolSize"));
+		 myDataSource.setMaxIdleTime(getIntProperty("connection.pool.maxIdleTime"));
+		 
+		 return myDataSource;
+	 }
+
+	private Properties getHibernaProperties() {
+		Properties props = new Properties();
+		props.setProperty("hibernate.dialect", env.getProperty("hibernate.dialect"));
+		props.setProperty("hibernate.show_sql", env.getProperty("hibernate.show_sql"));
+		
+		return props;
+	}
+	 
+	private int getIntProperty(String propName) {
+		String propVal = env.getProperty(propName);
+		int intPropVal = Integer.parseInt(propVal);
+		return intPropVal;
+	}
+	
+	@Bean
+	public LocalSessionFactoryBean sessionFactory() {
+		LocalSessionFactoryBean sessionFactory = new LocalSessionFactoryBean();
+		sessionFactory.setDataSource(myDataSource());
+		sessionFactory.setPackagesToScan(env.getProperty("hibernate.packagesToScan"));
+		sessionFactory.setHibernateProperties(getHibernaProperties());
+		return sessionFactory;
+	}
+	
+	@Bean
+	@Autowired
+	public HibernateTransactionManager transactionManager(SessionFactory sessionFactory) {
+		HibernateTransactionManager txManager = new HibernateTransactionManager();
+		txManager.setSessionFactory(sessionFactory);
+		return txManager;
+	}
+	
+	public void addResourceHandlers(ResourceHandlerRegistry registry) {
+		registry.addResourceHandler("/resources/**").addResourceLocations("/resources/");
+	}
+
+}
+
+
+
+package PHAMKIENTRUNG_REST.config;
+
+import org.springframework.web.servlet.support.AbstractAnnotationConfigDispatcherServletInitializer;
+
+public class MyServletInitializer extends AbstractAnnotationConfigDispatcherServletInitializer {
+	@Override
+	protected Class<?>[] getRootConfigClasses(){
+		return null;
+	}
+
+	@Override
+	protected Class<?>[] getServletConfigClasses(){
+		return new Class[] {DemoAppConfig.class};
+	}
+	
+	@Override
+	protected String[] getServletMappings() {
+		return new String[] {"/"};
+	}
+}
+
+package PHAMKIENTRUNG_REST.dao;
+
+import java.util.List;
+
+import org.hibernate.Query;
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Repository;
+
+import PHAMKIENTRUNG_REST.entity.TuyenXe;
+
+@Repository
+public class TuyenXeDAOImpl implements TuyenXeDAO {
+	
+	@Autowired
+	private SessionFactory sessionFactory;
+	
+	@Override
+	public List<TuyenXe> getTuyenXes(){
+		Session currentSession = sessionFactory.getCurrentSession();
+		Query<TuyenXe> theQuery = currentSession.createQuery("from TuyenXe order by tenTX", TuyenXe.class);
+		List<TuyenXe> tuyenXes = theQuery.getResultList();
+		return tuyenXes;
+	}
+
+	@Override
+	public void saveTuyenXe(TuyenXe theTuyenXe) {
+		Session currentSession = sessionFactory.getCurrentSession();
+		currentSession.saveOrUpdate(theTuyenXe);
+	}
+	
+	@Override
+	public TuyenXe getTuyenXe(int theId) {
+		Session currentSession = sessionFactory.getCurrentSession();
+		TuyenXe theTuyenXe = currentSession.get(TuyenXe.class, theId);
+		return theTuyenXe;
+	}
+	
+	@Override
+	public void deleteTuyenXe(int theId) {
+		Session currentSession = sessionFactory.getCurrentSession();
+		Query theQuery = currentSession.createQuery("delete from TuyenXe where maTX=:tuyenxeId");
+		theQuery.setParameter("tuyenxeId", theId);
+		theQuery.executeUpdate();
+
+	}
+}
+
+
+
+
+package PHAMKIENTRUNG_REST.rest;
+
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import PHAMKIENTRUNG_REST.entity.TuyenXe;
+import PHAMKIENTRUNG_REST.service.TuyenXeService;
+
+@RestController
+@RequestMapping("/api")
+public class TuyenXeRestController {
+
+	@Autowired
+	private TuyenXeService tuyenXeService;
+	
+	@GetMapping("/xes")
+	public List<TuyenXe> getTuyenXes(){
+		return tuyenXeService.getTuyenXes();
+	}
+	
+	@GetMapping("/xes/{tuyenxeId}")
+	public TuyenXe getTuyenXe(@PathVariable int tuyenxeId) {
+		TuyenXe theTuyenXe = tuyenXeService.getTuyenXe(tuyenxeId);
+		if(theTuyenXe == null) {
+			
+		}
+		return theTuyenXe;
+	}
+	
+	@PostMapping("/xes")
+	public TuyenXe addTuyenXe(@RequestBody TuyenXe theTuyenXe) {
+		theTuyenXe.setMaTX(0);
+		tuyenXeService.saveTuyenXe(theTuyenXe);
+		return theTuyenXe;
+	}
+	
+	@PutMapping("/xes")
+	public TuyenXe updateTuyenXe(@RequestBody TuyenXe theTuyenXe) {
+		tuyenXeService.saveTuyenXe(theTuyenXe);
+		return theTuyenXe;
+	}
+	
+	@DeleteMapping("/xes/{tuyenxeId}")
+	public String deleteTuyenXe(@PathVariable int tuyenxeId) {
+		TuyenXe tempTuyenXe = tuyenXeService.getTuyenXe(tuyenxeId);
+		if(tempTuyenXe == null) {
+			
+		}
+		tuyenXeService.deleteTuyenXe(tuyenxeId);
+		return "Delete TuyenXe maTX - " + tuyenxeId;
+	}
+	
+}
+package PHAMKIENTRUNG_REST.service;
+
+import java.util.List;
+
+import javax.transaction.Transactional;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import PHAMKIENTRUNG_REST.dao.TuyenXeDAO;
+import PHAMKIENTRUNG_REST.entity.TuyenXe;
+
+@Service
+public class TuyenXeServiceImpl implements TuyenXeService {
+	
+	@Autowired
+	private TuyenXeDAO tuyenXeDAO;
+	
+	@Override
+	@Transactional
+	public List<TuyenXe> getTuyenXes(){
+		return tuyenXeDAO.getTuyenXes();
+	}
+	
+	@Override
+	@Transactional
+	public void saveTuyenXe(TuyenXe theTuyenXe) {
+		tuyenXeDAO.saveTuyenXe(theTuyenXe);
+	}
+	
+	@Override
+	@Transactional
+	public TuyenXe getTuyenXe(int theId) {
+		return tuyenXeDAO.getTuyenXe(theId);
+	}
+	
+	@Override
+	@Transactional
+	public void deleteTuyenXe(int theId) {
+		tuyenXeDAO.deleteTuyenXe(theId);
+	}
+
+}
+package PHAMKIENTRUNG_MVC.config;
+
+import java.beans.PropertyVetoException;
+import java.util.Properties;
+import java.util.logging.Logger;
+
+import javax.sql.DataSource;
+
+import org.hibernate.SessionFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.PropertySource;
+import org.springframework.core.env.Environment;
+import org.springframework.orm.hibernate5.HibernateTransactionManager;
+import org.springframework.orm.hibernate5.LocalSessionFactoryBean;
+import org.springframework.transaction.annotation.EnableTransactionManagement;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.web.servlet.ViewResolver;
+import org.springframework.web.servlet.config.annotation.EnableWebMvc;
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.web.servlet.view.InternalResourceViewResolver;
+
+import com.mchange.v2.c3p0.ComboPooledDataSource;
+
+@Configuration
+@EnableWebMvc
+@ComponentScan("PHAMKIENTRUNG_MVC")
+@PropertySource({"classpath:application.properties"})
+public class DemoAppConfig implements WebMvcConfigurer {
+	 
+	@Bean
+	public ViewResolver viewResolver() {
+		InternalResourceViewResolver viewResolver = new InternalResourceViewResolver();
+		viewResolver.setPrefix("/WEB-INF/view/");
+		viewResolver.setSuffix(".jsp");
+		return viewResolver;
+	}
+	
+	@Bean
+	public RestTemplate restTemplate() {
+		return new RestTemplate();
+	}
+	
+	public void addResourceHandlers(ResourceHandlerRegistry registry) {
+		registry.addResourceHandler("/resources/**").addResourceLocations("/resources/");
+	}
+
+}
+package PHAMKIENTRUNG_MVC.controller;
+
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+
+import PHAMKIENTRUNG_MVC.model.TuyenXe;
+import PHAMKIENTRUNG_MVC.service.TuyenXeService;
+
+@Controller
+@RequestMapping("/tuyenXe")
+public class TuyenXeController {
+	
+	@Autowired
+	private TuyenXeService tuyenXeService;
+	
+	@GetMapping("/list")
+	public String listTuyenXe(Model theModel) {
+		List<TuyenXe> theTuyenXes = tuyenXeService.getTuyenXes();
+		theModel.addAttribute("tuyenXes", theTuyenXes);
+		return "list-tuyenXes";
+	}
+	
+	@GetMapping("/showFormForAdd")
+	public String showFormForAdd(Model theModel) {
+		TuyenXe theTuyenXe = new TuyenXe();
+		theModel.addAttribute("tuyenXe", theTuyenXe);
+		return "tuyenXe-form";
+	}
+	
+	@PostMapping("/saveTuyenXe")
+	public String saveTuyenXe(@ModelAttribute("tuyenXe") TuyenXe theTuyenXe) {
+		tuyenXeService.saveTuyenXe(theTuyenXe);
+		return "redirect:/tuyenXe/list";
+	}
+	
+	@GetMapping("/showFormForUpdate")
+	public String showFormForUpdate(@RequestParam("tuyenxeId")int theId, Model theModel) {
+		TuyenXe theTuyenXe = tuyenXeService.getTuyenXe(theId);
+		theModel.addAttribute("tuyenXe", theTuyenXe);
+		return "tuyenXe-form";
+	}
+	
+	@GetMapping("/delete")
+	public String deleteTuyenXe(@RequestParam("tuyenxeId")int theId) {
+		tuyenXeService.deleteTuyenXe(theId);
+		return "redirect:/tuyenXe/list";
+	}
+	
+
+}
+package PHAMKIENTRUNG_MVC.service;
+
+import java.util.List;
+import java.util.logging.Logger;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+import PHAMKIENTRUNG_MVC.model.TuyenXe;
+
+@Service
+public class TuyenXeServiceRestClientImpl implements TuyenXeService {
+	private RestTemplate restTemplate;
+	private String crmRestUrl;
+	private Logger logger = Logger.getLogger(getClass().getName());
+	
+	@Autowired
+	public TuyenXeServiceRestClientImpl(RestTemplate theRestTemplate, @Value("${crm.rest.url}") String theUrl) {
+		restTemplate = theRestTemplate;
+		crmRestUrl = theUrl;
+		logger.info("Loaded property: crm.rest.url=" + crmRestUrl);
+	}
+	
+	@Override
+	public List<TuyenXe> getTuyenXes(){
+		logger.info("in getTuyenXes(): Calling REST API" + crmRestUrl);
+		ResponseEntity<List<TuyenXe>> responseEntity = restTemplate.exchange(crmRestUrl, HttpMethod.GET, null,
+				new ParameterizedTypeReference<List<TuyenXe>>() {
+				});
+		List<TuyenXe> tuyenXes = responseEntity.getBody();
+		logger.info("in getTuyenXes(): tuyenXes" + tuyenXes);
+		return tuyenXes;
+	}
+	
+	@Override
+	public void saveTuyenXe(TuyenXe theTuyenXe) {
+		logger.info("in saveTuyenXe(): Calling REST API " + crmRestUrl);
+		int tuyenxeId = theTuyenXe.getMaTX();
+		if(tuyenxeId == 0) {
+			restTemplate.postForEntity(crmRestUrl, theTuyenXe, String.class);
+		} else {
+			restTemplate.put(crmRestUrl, theTuyenXe);
+		}
+		logger.info("in saveTuyenXe(): success");
+	}
+	
+	@Override
+	public TuyenXe getTuyenXe(int theId) {
+		logger.info("in getTuyenXe(): Calling REST API " + crmRestUrl);
+		TuyenXe theTuyenXe = restTemplate.getForObject(crmRestUrl + "/" + theId, TuyenXe.class);
+		logger.info("in saveTuyenXe(): theTuyenXe= " + theTuyenXe);
+		return theTuyenXe;
+	}
+	
+	@Override
+	public void deleteTuyenXe(int theId) {
+		logger.info("in deleteTuyenXe(): Calling REST API"+ crmRestUrl );
+		restTemplate.delete(crmRestUrl + "/" + theId);
+		logger.info("in deleteTuyenXe(): deleted tuyenXe theId= " + theId);    ///////////////
+		
+		
+	}
+
+}
+
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+    pageEncoding="UTF-8"%>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+	<title>List Customers</title>
+	<link type="text/css"
+			rel="stylesheet"
+			href="${pageContext.request.contextPath}/resources/css/style.css"/>
+</head>
+<body>
+<div id="wrapper">
+		<div id="header">
+			<h2>CRM - Customer Relationship Manager</h2>
+		</div>
+</div>
+<div id="container">
+	<div id="content">
+		<input type="button" value="Add Customer"
+					onclick="window.location.href='showFormForAdd'; return false;" class="add-button" />
+		<table>
+			<tr>
+				<th>ten tuyen xe</th>
+				<th>khoang cach</th>
+				<th>diem khoi hanh</th>
+				<th>diem den</th>
+				<th>Action</th>
+			</tr>
+			<c:forEach var="tempTuyenXe" items="${tuyenXes}">
+				<c:url var="updateLink" value="/tuyenXe/showFormForUpdate">
+					<c:param name="tuyenxeId" value="${tempTuyenXe.maTX}"/>
+				</c:url>
+				<c:url var="deleteLink" value="/tuyenXe/delete">
+					<c:param name="tuyenxeId" value="${tempTuyenXe.maTX}"/>
+				</c:url>
+				<tr>
+					<td>${tempTuyenXe.tenTX}</td>
+					<td>${tempTuyenXe.khoangCach}</td>
+					<td>${tempTuyenXe.diemKH}</td>
+					<td>${tempTuyenXe.diemDen}</td>
+					<td>
+						<a href="${updateLink}">Update</a>
+						<a href="${deleteLink}"
+							onclick="if (!(confirm('Do you want to delete this Customer???'))) return false">Delete</a>
+					</td>
+				</tr>
+			</c:forEach>
+		</table>
+	</div>
+</div>
+</body>
+</html>
+
+
+
+
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+	pageEncoding="UTF-8"%>
+<%@ taglib uri="http://www.springframework.org/tags/form" prefix="form" %>
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+	<title>Save Customers</title>
+	<link type="text/css" 
+			rel="stylesheet"
+			href="${pageContext.request.contextPath}/resources/css/style.css" >
+			<link type="text/css" 
+			rel="stylesheet"
+			href="${pageContext.request.contextPath}/resources/css/add-customer-style.css" >	
+</head>
+<body>
+	<div id="wrapper">
+		<div id="header">
+			<h2>CRM - Customer Relationship Manager</h2>
+		</div>
+	</div>
+	<div id="container">
+		<h3>Save Customer</h3>
+		<form:form action="saveTuyenXe" modelAttribute="tuyenXe" method="POST">
+			<form:hidden path="maTX"/> 
+			<table>
+				<tbody>
+					<tr>
+						<td><label>ten tuyen xe:</label></td>
+						<td><form:input path="tenTX"/></td>
+					</tr>
+					<tr>
+						<td><label>khoang cach:</label></td>
+						<td><form:input path="khoangCach"/></td>
+					</tr>
+					<tr>
+						<td><label>diem khoi hanh:</label></td>
+						<td><form:input path="diemKH"/></td>
+					</tr>
+					<tr>
+						<td><label>diem den:</label></td>
+						<td><form:input path="diemDen"/></td>
+					</tr>
+					<tr>
+						<td><label></label></td>
+						<td><input type="submit" value="Save" class="save"/></td>
+					</tr>
+				</tbody>
+			</table>
+		</form:form>
+		<div></div>
+		<p>
+			<a href="${pageContext.request.contextPath}/tuyenXe/list">Back to list</a>
+		</p>
+	</div>
+</body>
+</html>
