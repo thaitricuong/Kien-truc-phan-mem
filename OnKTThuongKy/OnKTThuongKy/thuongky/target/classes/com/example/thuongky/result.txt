@@ -1,0 +1,16 @@
+Patient ID: PT_49759
+Patient Name: Benjamin Dover
+Blood Type: B-
+Gender: Male
+Address: 63 Vancouver Way, AL, Wheeler, Alabama
+Telephones:
+(432)753-1274
+(432)561-1275
+Tests:
+Test ID: 5677
+Date: Sun Apr 10 00:00:00 ICT 3921
+Result: High levels of glucose
+Test Type: Urinalysis
+Cost: $150.0
+Year of Birth: 1984
+
